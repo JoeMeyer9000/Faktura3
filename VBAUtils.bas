@@ -64,6 +64,22 @@ End Function
 ' Excel
 ' --------------------------------------------------
 
+Public Function GetWorkbookDirectory(Optional aWorkbook As Workbook = Nothing) As String
+    If aWorkbook Is Nothing Then
+        GetWorkbookDirectory = Application.ActiveWorkbook.path
+    Else
+        GetWorkbookDirectory = aWorkbook.path
+    End If
+End Function
+
+Public Function GetWorkbookFilename(Optional aWorkbook As Workbook = Nothing) As String
+    If aWorkbook Is Nothing Then
+        GetWorkbookFilename = Application.ActiveWorkbook.Fullname
+    Else
+        GetWorkbookFilename = aWorkbook.Fullname
+    End If
+End Function
+
 Public Function FindRowIndex(ByVal tableColumn As ListColumn, ByVal searchTerm As Variant) As Long
     ' searches a list column for a search term and returns the row nummber (or 0 if not found)
     Dim result As Long
@@ -89,7 +105,7 @@ Public Function CollectSelectedRows(Table As ListObject, Optional multiSelect As
     ' returns a list of indexes of the selected rows
     ' an error is displayed if the number of selected rows does not match the multiSelect parameter
     Dim result As Collection
-    Set result = selectedRows(Table)
+    Set result = SelectedRows(Table)
     
     If result.count = 0 Then
         ShowHint StrFormat("Bitte markieren Sie %1 Zelle in der gewünschten Zeile", IIf(multiSelect, "mindestens 1", "genau 1"))
@@ -100,7 +116,7 @@ Public Function CollectSelectedRows(Table As ListObject, Optional multiSelect As
     Set CollectSelectedRows = result
 End Function
 
-Private Property Get selectedRows(aTable As ListObject) As Collection
+Private Property Get SelectedRows(aTable As ListObject) As Collection
     ' returns a list of indexes of the selected rows
     Dim rowColl As New Collection
     Dim i As Long
@@ -134,7 +150,7 @@ Private Property Get selectedRows(aTable As ListObject) As Collection
         
     End With
     
-    Set selectedRows = rowColl
+    Set SelectedRows = rowColl
 End Property
 
 Public Function MapRowToSheet(aTable As ListObject, ByVal rowIndex As Long) As Long
