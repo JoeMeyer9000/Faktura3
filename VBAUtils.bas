@@ -18,9 +18,12 @@ Public Const ERR_SyntaxError = ERR_Offset + 2
 Public Const ERR_UnsupportedItem = ERR_Offset + 3
 Public Const ERR_NotFound = ERR_Offset + 4
 Public Const ERR_MissingParameter = ERR_Offset + 5
-Public Const ERR_PathNotFound = ERR_Offset + 6
+Public Const ERR_InvalidParameter = ERR_Offset + 6
 Public Const ERR_Failed = ERR_Offset + 7
 Public Const ERR_AccessDenied = ERR_Offset + 8
+Public Const ERR_FileNotFound = ERR_Offset + 9
+Public Const ERR_FileExists = ERR_Offset + 10
+Public Const ERR_PathNotFound = ERR_Offset + 11
 
 ' m_FSO is used in property FSO
 Private m_FSO As FileSystemObject
@@ -29,7 +32,7 @@ Private m_FSO As FileSystemObject
 ' Message
 ' --------------------------------------------------
 
-Public Function ExitOnError(ByVal errorCondition As Boolean, Optional ByVal errorMessage As String = "Fehler|AKtion fehlgeschlagen") As Boolean
+Public Function ExitOnError(ByVal errorCondition As Boolean, Optional ByVal errorMessage As String = "Fehler|Aktion fehlgeschlagen") As Boolean
     ' helper to show error and return false. Use like this:
     ' if ExitOnError(myErrorCondition, "It's an error") then Exit Sub
     ExitOnError = errorCondition
@@ -54,15 +57,46 @@ Public Sub ShowHint(titleAndMessage As String)
     MessageBox.ShowMessage titleAndMessage, mbsMessage
 End Sub
 
-Public Function Ask(titleAndMessage As String, Optional ByVal msgButtons As MessageBoxButtons = mbbOkCancel) As MessageBoxStyle
+Public Function Ask(titleAndMessage As String, Optional ByVal msgButtons As MessageBoxButtons = mbbOkCancel) As VbMsgBoxResult
     ' shows a message box with a question
     If Not (InStr(1, titleAndMessage, "|") > 0) Then titleAndMessage = "Bestätigung|" & titleAndMessage
     Ask = MessageBox.ShowMessage(titleAndMessage, mbsMessage, msgButtons)
 End Function
 
+' -----------------------------------------------
+' Arrays
+' -----------------------------------------------
+
+Public Property Get ArrayWidth(ByRef TwoDimArray As Variant) As Long
+    ArrayWidth = ArraySize(TwoDimArray, 2)
+End Property
+
+Public Property Get ArrayHeight(ByRef TwoDimArray As Variant) As Long
+    ArrayHeight = ArraySize(TwoDimArray, 1)
+End Property
+
+Public Property Get ArraySize(ByRef aArray As Variant, ByVal aDimension As Byte) As Long
+    If IsEmpty(aArray) Then
+        ArraySize = 0
+    Else
+        ArraySize = UBound(aArray, aDimension) - LBound(aArray, aDimension) + 1
+    End If
+End Property
+
 ' --------------------------------------------------
 ' Excel
 ' --------------------------------------------------
+
+Public Sub ConvertA1ToR1C1(ByVal aAddress As String, ByRef aRow As Long, ByRef aColumn As Long)
+    With ActiveSheet
+        aColumn = .Range(aAddress).column
+        aRow = .Range(aAddress).row
+    End With
+End Sub
+
+Public Function ConvertR1C1ToA1(ByVal aRow As Long, ByVal aColumn As Long) As String
+    ConvertR1C1ToA1 = ActiveSheet.Cells(aRow, aColumn)
+End Function
 
 Public Function GetWorkbookDirectory(Optional aWorkbook As Workbook = Nothing) As String
     If aWorkbook Is Nothing Then
@@ -133,7 +167,7 @@ Private Property Get SelectedRows(aTable As ListObject) As Collection
             For j = 1 To selectedArea.Rows.count
                 ' Die Tabellenzeile ist nicht identisch mit der Zeilennummer des Worksheet
                 ' daher mappen wir die gefundenen Sheet-Zeile in eine Table-Zeile
-                foundRow = MapRowToTable(aTable, selectedArea.Rows(j).Row)
+                foundRow = MapRowToTable(aTable, selectedArea.Rows(j).row)
                 ' Wenn die Zeile außerhalb der Table liegt, sind wir fertig
                 If foundRow > aTable.ListRows.count Then Exit For
                 If foundRow > 0 Then
@@ -155,14 +189,14 @@ End Property
 
 Public Function MapRowToSheet(aTable As ListObject, ByVal rowIndex As Long) As Long
     ' takes a table's row index and returns the according screen row
-    MapRowToSheet = rowIndex + aTable.HeaderRowRange.Row
+    MapRowToSheet = rowIndex + aTable.HeaderRowRange.row
 End Function
 
 Public Function MapRowToTable(aTable As ListObject, ByVal rowIndex As Long) As Long
     ' takes a screen's row index and returns the according table row
     ' If you have to use this, you're probablky doing something wrong because
     ' all data resided in ListObjects and there's usually only 1 table object per sheet
-    MapRowToTable = rowIndex - aTable.HeaderRowRange.Row
+    MapRowToTable = rowIndex - aTable.HeaderRowRange.row
 End Function
 
 Public Function IsFiltered(aTable As ListObject) As Boolean
@@ -250,6 +284,7 @@ Public Function PathCombine(ParamArray parts() As Variant) As String
     Dim part As Variant
     For Each part In parts
         part = CStr(part)
+        If Left$(part, 1) = "\" Then part = Right$(part, Len(part) - 1)
         If Len(part) > 0 Then
             If result = "" Then
                 result = part
@@ -266,6 +301,23 @@ Public Function AddBackslash(ByVal folder As String) As String
     AddBackslash = folder
     If folder = "" Then Exit Function
     If Right$(folder, 1) <> "\" Then AddBackslash = folder & "\"
+End Function
+
+Public Function ChangeExtension(ByVal filename As String, ByVal newExtension As String) As String
+    ' filename cannot be empty
+    If filename = "" Then Err.Raise ERR_MissingParameter, "ChangeExtension", "ChangeExtension: missing filename"
+    
+    ' newExtension cannot be empty
+    If newExtension = "" Then Err.Raise ERR_MissingParameter, "ChangeExtension", "ChangeExtension: missing new extension"
+    If Left$(newExtension, 1) = "." Then newExtension = Right$(newExtension, Len(newExtension) - 1)
+    
+    ' find last point in filename
+    Dim p As Long
+    p = InStrRev(filename, ".")
+    If p = 0 Then Err.Raise ERR_FormatError, "ChangeExtension", "ChangeExtension: no extension in filename"
+    
+    ' new filename
+    ChangeExtension = Left$(filename, p) & newExtension
 End Function
 
 Public Sub CreateFullDirectory(strPath As String)
